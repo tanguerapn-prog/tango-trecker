@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tango Tracker</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tango Tracker">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Nunito', Arial, sans-serif; background-color: #FFF5EE; color: #3D2C2E; padding-bottom: 100px; min-height: 100vh; }
+.app-header { padding: 24px 20px 10px; background: linear-gradient(180deg, #FFF5EE 0%, #FFF5EE00 100%); position: sticky; top: 0; z-index: 50; }
+.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.user-info { display: flex; align-items: center; gap: 12px; }
+.avatar-placeholder { width: 48px; height: 48px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 20px rgba(61, 44, 46, 0.05); }
+.greeting { font-size: 22px; font-weight: 800; margin: 0; line-height: 1.1; color: #3D2C2E; }
+.date-display { font-size: 13px; color: #9E8E90; font-weight: 600; }
+.icon-btn { background: white; border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FF8C69; box-shadow: 0 4px 20px rgba(61, 44, 46, 0.05); cursor: pointer; font-size: 24px; }
+.tabs-container { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
+.tab-pill { background: transparent; border: 2px solid transparent; padding: 8px 20px; border-radius: 30px; font-family: inherit; font-weight: 700; font-size: 14px; color: #9E8E90; cursor: pointer; white-space: nowrap; }
+.tab-pill.active { background: #FF8C69; color: white; }
+.content-area { padding: 10px 20px; max-width: 600px; margin: 0 auto; }
+.student-card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(61, 44, 46, 0.05); position: relative; overflow: hidden; }
+.student-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+.status-ok::before { background: #6BCB77; } .status-warn::before { background: #FFD166; } .status-danger::before { background: #EF476F; } .status-expired::before { background: #ccc; }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.student-name { font-size: 18px; font-weight: 800; margin-bottom: 4px; color: #3D2C2E; }
+.student-phone { font-size: 13px; color: #9E8E90; }
+.badges { display: flex; gap: 6px; }
+.badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.badge-group { background: #F0EBFA; color: #9B85D6; } .badge-type { background: #FFF0EB; color: #FF8C69; }
+.progress-wrapper { margin-bottom: 16px; }
+.progress-labels { display: flex; justify-content: space-between; font-size: 14px; font-weight: 800; margin-bottom: 8px; color: #3D2C2E; }
+.progress-track { height: 12px; background: #F5F0F1; border-radius: 10px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 10px; }
+.status-text { font-size: 13px; font-weight: 700; margin-bottom: 16px; display: inline-block; padding: 6px 12px; border-radius: 12px; }
+.text-danger { background: #FFE5EC; color: #EF476F; } .text-warn { background: #FFF8E1; color: #F57F17; } .text-success { background: #E8F5E9; color: #6BCB77; }
+.notes-block { background: #FDF8F7; padding: 12px; border-radius: 12px; font-size: 13px; color: #9E8E90; margin-bottom: 16px; border-left: 3px solid #FF8C69; }
+.card-actions { display: flex; gap: 10px; }
+.btn { flex: 1; padding: 12px; border-radius: 16px; border: none; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.btn-primary { background: #FF8C69; color: white; } .btn-secondary { background: #F5F0F1; color: #3D2C2E; } .btn-icon-only { flex: 0; width: 44px; padding: 0; background: transparent; color: #EF476F; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.bottom-nav-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: white; border-radius: 30px; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 40px rgba(61, 44, 46, 0.15); z-index: 100; }
+.nav-link { background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #D1C4C6; font-size: 10px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.nav-link.active { color: #FF8C69; }
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(61, 44, 46, 0.6); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal-card { background: white; width: 100%; max-width: 500px; border-radius: 30px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.modal-header h2 { margin: 0; font-size: 20px; color: #3D2C2E; }
+.close-modal { background: #F5F0F1; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; color: #9E8E90; font-size: 16px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; font-weight: 700; color: #9E8E90; margin-bottom: 8px; }
+.form-row { display: flex; gap: 16px; } .half { flex: 1; }
+.soft-input { width: 100%; padding: 14px; border: 2px solid #F5F0F1; border-radius: 16px; background: #FDF8F7; font-family: inherit; font-size: 15px; color: #3D2C2E; outline: none; }
+.soft-input:focus { border-color: #FF8C69; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; border: 2px solid transparent; background: #FDF8F7; cursor: pointer; font-size: 12px; font-weight: 700; position: relative; }
+.cal-day:hover { background: #F5F0F1; }
+.cal-day.filled { background: #6BCB77; color: white; border-color: #6BCB77; }
+.cal-day .day-num { font-size: 16px; line-height: 1; margin-bottom: 2px; }
+.cal-day .day-name { font-size: 9px; opacity: 0.6; }
+.cal-day.filled .day-name { opacity: 0.9; color: white; }
+.cal-month-label { grid-column: 1 / -1; text-align: center; font-weight: 800; color: #9B85D6; margin: 10px 0 5px; font-size: 14px; }
+.empty-state { text-align: center; padding: 60px 20px; color: #9E8E90; }
+.empty-state .emoji { font-size: 60px; margin-bottom: 16px; display: block; }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.admin-badge { background: #EF476F; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-left: 10px; display: none; }
+.admin-badge.visible { display: inline-block; }
+.student-list-item { padding: 10px 0; border-bottom: 1px solid #F5F0F1; display: flex; justify-content: space-between; align-items: center; }
+.config-notice { background: #FFF0EB; border: 2px solid #FF8C69; border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center; }
+.config-notice h3 { color: #3D2C2E; margin-bottom: 10px; }
+.config-notice p { color: #9E8E90; margin-bottom: 16px; }
+.attendance-calendar { max-height: 400px; overflow-y: auto; }
+.loading-overlay { text-align: center; padding: 40px; color: #9E8E90; }
+.sync-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 8px; vertical-align: middle; }
+.sync-online { background: #6BCB77; }
+.sync-offline { background: #EF476F; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="app-header">
+    <div class="header-top">
+      <div class="user-info">
+        <div class="avatar-placeholder">💃</div>
+        <div>
+          <h1 class="greeting">Tango Tracker <span class="admin-badge" id="adminBadge">АДМИН</span></h1>
+          <div class="date-display" id="headerDate">
+            <span class="sync-indicator sync-online" id="syncIndicator" title="Подключено к облаку"></span>
+          </div>
+        </div>
+      </div>
+      <button class="icon-btn" id="btnAddStudent" title="Добавить ученика" style="display:none;">+</button>
+    </div>
+    <div class="tabs-container" id="tabs">
+      <button class="tab-pill active" data-tab="all">Все</button>
+      <button class="tab-pill" data-tab="beginner">Начинающие</button>
+      <button class="tab-pill" data-tab="advanced">Продолжающие</button>
+    </div>
+  </header>
+
+  <main class="content-area" id="content">
+    <div class="loading-overlay">Загрузка данных из облака...</div>
+  </main>
+
+  <nav class="bottom-nav-bar" id="bottomNav">
+    <button class="nav-link active" data-view="students">👥 Ученики</button>
+    <button class="nav-link" data-view="stats">📊 Статистика</button>
+    <button class="nav-link" data-view="schedule">📅 Расписание</button>
+    <button class="nav-link" data-view="settings">⚙️ Настройки</button>
+  </nav>
+
+  <div class="modal-overlay" id="studentModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modalTitle">Новый ученик</h2>
+        <button class="close-modal" id="btnCloseStudentModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editId">
+        <div class="form-group"><label>Имя и фамилия</label><input type="text" id="fName" placeholder="Анна Иванова" class="soft-input"></div>
+        <div class="form-group"><label>Телефон / Telegram</label><input type="text" id="fPhone" placeholder="+7 999 000-00-00" class="soft-input"></div>
+        <div class="form-row">
+          <div class="form-group half"><label>Группа</label><select id="fGroup" class="soft-input"><option value="beginner">Начинающая</option><option value="advanced">Продолжающая</option></select></div>
+          <div class="form-group half"><label>Абонемент</label><select id="fLessons" class="soft-input"><option value="4">4 занятия</option><option value="8">8 занятий</option></select></div>
+        </div>
+        <div class="form-group"><label>Дата первого занятия</label><input type="date" id="fFirstDate" class="soft-input"></div>
+        <div class="form-group" id="customEndGroup" style="display:none;"><label>Дата окончания (ручная коррекция)</label><input type="date" id="fEndDate" class="soft-input"></div>
+        <div class="form-group"><label>Примечания</label><textarea id="fNotes" placeholder="Травма, отпуск..." class="soft-input"></textarea></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="btnCancelStudent">Отмена</button>
+          <button class="btn btn-primary" id="btnSaveStudent">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="dayModal">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2 id="dayModalTitle">Посещаемость</h2>
+        <button class="close-modal" id="btnCloseDayModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="attendanceCalendar" class="attendance-calendar"></div>
+        <div class="modal-actions" style="margin-top:20px;">
+          <button class="btn btn-secondary" onclick="closeDayModal()">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal-card" style="max-width: 350px;">
+      <div class="modal-header"><h2>Вход для администратора</h2><button class="close-modal" onclick="document.getElementById('adminModal').classList.remove('open')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Пароль</label><input type="password" id="adminPass" class="soft-input" placeholder="Введите пароль"></div>
+        <div class="modal-actions"><button class="btn btn-primary" id="btnAdminLogin">Войти</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// НАСТРОЙКИ SUPABASE
+// ==========================================
+const SUPABASE_URL = 'https://ijjcmeuybaglpmpuygec.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqamNtZXV5YmFnbHBtcHV5Z2VjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NDA5OTAsImV4cCI6MjA5ODAxNjk5MH0.e5VY8jcXZZG-f7X6aSxhu9mV3JO2JAfBFnRKUIs41hs';
+
+const ADMIN_PASSWORD = 'tango2026';
+let supabase = null;
+let currentStudents = [];
+let currentTab = 'all';
+let currentView = 'students';
+let isAdmin = localStorage.getItem('tango_is_admin') === 'true';
+let currentStudentId = null;
+let isOnline = false;
+
+// Инициализация Supabase
+function initSupabase() {
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    updateSyncIndicator(true);
+    return true;
+  } catch (e) {
+    console.error('Ошибка подключения к Supabase:', e);
+    updateSyncIndicator(false);
+    return false;
+  }
+}
+
+function updateSyncIndicator(online) {
+  isOnline = online;
+  const indicator = document.getElementById('syncIndicator');
+  if (indicator) {
+    indicator.className = 'sync-indicator ' + (online ? 'sync-online' : 'sync-offline');
+    indicator.title = online ? 'Подключено к облаку' : 'Нет подключения';
+  }
+}
+
+// ==========================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ==========================================
+function generateId() { return 'id_' + Date.now() + '_' + Math.floor(Math.random() * 1000); }
+function parseDate(str) { if (!str) return null; var p = str.split('-'); return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])); }
+function formatDate(d) { if (!d) return ''; return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear(); }
+function addWeeks(date, weeks) { var r = new Date(date); r.setDate(r.getDate() + weeks * 7); return r; }
+function daysBetween(a, b) { return Math.ceil(Math.abs(b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)); }
+function todayStr() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function isToday(dateStr) { return dateStr === todayStr(); }
+function isPast(dateStr) { return dateStr < todayStr(); }
+
+var DAY_NAMES = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+var MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+function calcExpiry(s) {
+  var firstDate = parseDate(s.first_date || s.firstDate);
+  if (!firstDate) return null;
+  if (s.custom_end_date) return parseDate(s.custom_end_date);
+  return addWeeks(firstDate, 5);
+}
+
+function getRemainingLessons(s) {
+  var total = parseInt(s.total_lessons || s.totalLessons);
+  var attended = (s.attendance || []).length;
+  return Math.max(0, total - attended);
+}
+
+function getStudentStatus(s) {
+  var remaining = getRemainingLessons(s);
+  var expiry = calcExpiry(s);
+  var now = new Date(); now.setHours(0,0,0,0);
+  if (remaining === 0) return { level: 'expired', label: 'Абонемент использован', color: '#ccc' };
+  if (!expiry) return { level: 'ok', label: '', color: '#6BCB77' };
+  var daysLeft = daysBetween(now, expiry);
+  if (daysLeft < 0) return { level: 'expired', label: 'Срок истёк ' + formatDate(expiry), color: '#EF476F' };
+  if (daysLeft <= 7) return { level: 'danger', label: 'Сгорает через ' + daysLeft + ' дн.', color: '#EF476F' };
+  if (daysLeft <= 14) return { level: 'warn', label: 'Осталось ' + daysLeft + ' дн.', color: '#F57F17' };
+  return { level: 'safe', label: 'Действует до ' + formatDate(expiry), color: '#6BCB77' };
+}
+
+function escHtml(str) { if (!str) return ''; var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+// ==========================================
+// РАБОТА С SUPABASE
+// ==========================================
+async function loadStudents() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Ошибка загрузки:', error);
+      updateSyncIndicator(false);
+      return [];
+    }
+    updateSyncIndicator(true);
+    return data || [];
+  } catch (e) {
+    console.error('Ошибка:', e);
+    updateSyncIndicator(false);
+    return [];
+  }
+}
+
+async function addStudentToDb(studentData) {
+  if (!supabase) return { error: 'Нет подключения' };
+  const { data, error } = await supabase
+    .from('students')
+    .insert([studentData])
+    .select();
+  updateSyncIndicator(!error);
+  return { data, error };
+}
+
+async function updateStudentInDb(id, studentData) {
+  if (!supabase) return { error: 'Нет подключения' };
+  const { data, error } = await supabase
+    .from('students')
+    .update(studentData)
+    .eq('id', id)
+    .select();
+  updateSyncIndicator(!error);
+  return { data, error };
+}
+
+async function deleteStudentFromDb(id) {
+  if (!supabase) return { error: 'Нет подключения' };
+  const { error } = await supabase
+    .from('students')
+    .delete()
+    .eq('id', id);
+  updateSyncIndicator(!error);
+  return { error };
+}
+
+async function clearAllStudents() {
+  if (!supabase) return { error: 'Нет подключения' };
+  const { error } = await supabase
+    .from('students')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000');
+  updateSyncIndicator(!error);
+  return { error };
+}
+
+// ==========================================
+// РЕНДЕРИНГ
+// ==========================================
+async function render() {
+  var content = document.getElementById('content');
+  document.getElementById('adminBadge').classList.toggle('visible', isAdmin);
+  document.getElementById('btnAddStudent').style.display = isAdmin ? 'flex' : 'none';
+
+  var now = new Date();
+  var dateEl = document.getElementById('headerDate');
+  if (dateEl) {
+    dateEl.innerHTML = now.toLocaleDateString('ru-RU', { weekday:'long', day:'numeric', month:'long' }) + 
+      ' <span class="sync-indicator ' + (isOnline ? 'sync-online' : 'sync-offline') + '" id="syncIndicator" title="' + (isOnline ? 'Подключено к облаку' : 'Нет подключения') + '"></span>';
+  }
+
+  if (!supabase) {
+    content.innerHTML = '<div class="config-notice"><h3>❌ Нет подключения к Supabase</h3><p>Проверьте настройки в разделе "Настройки"</p></div>';
+    return;
+  }
+
+  content.innerHTML = '<div class="loading-overlay">Загрузка данных из облака...</div>';
+  currentStudents = await loadStudents();
+
+  var filtered = currentStudents;
+  if (currentTab === 'beginner') filtered = currentStudents.filter(s => s.group === 'beginner');
+  else if (currentTab === 'advanced') filtered = currentStudents.filter(s => s.group === 'advanced');
+
+  if (currentView === 'students') renderStudents(filtered, content);
+  else if (currentView === 'stats') renderStats(currentStudents, content);
+  else if (currentView === 'schedule') renderSchedule(currentStudents, content);
+  else if (currentView === 'settings') renderSettings(content);
+}
+
+function renderStudents(students, container) {
+  if (students.length === 0) {
+    container.innerHTML = '<div class="empty-state"><span class="emoji">💃</span><p style="font-size:18px;font-weight:700;margin-bottom:8px;">Пока пусто</p><p>Нажмите «+» чтобы добавить первого ученика</p></div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < students.length; i++) {
+    var s = students[i];
+    s.name = s.name || ''; s.phone = s.phone || ''; s.group = s.group || 'beginner';
+    s.total_lessons = s.total_lessons || s.totalLessons || '4';
+    s.first_date = s.first_date || s.firstDate || '';
+    s.custom_end_date = s.custom_end_date || s.customEndDate || '';
+    s.notes = s.notes || ''; s.attendance = s.attendance || [];
+
+    var status = getStudentStatus(s);
+    var remaining = getRemainingLessons(s);
+    var total = parseInt(s.total_lessons);
+    var used = total - remaining;
+    
+    var pColor = '#6BCB77';
+    if (status.level === 'danger' || status.level === 'expired') pColor = '#EF476F';
+    else if (status.level === 'warn') pColor = '#FFD166';
+
+    var statusClass = 'status-ok';
+    if (status.level === 'expired') statusClass = 'status-expired';
+    else if (status.level === 'danger') statusClass = 'status-danger';
+    else if (status.level === 'warn') statusClass = 'status-warn';
+
+    var warnClass = 'text-success';
+    if (status.level === 'danger' || status.level === 'expired') warnClass = 'text-danger';
+    else if (status.level === 'warn') warnClass = 'text-warn';
+
+    html += '<div class="student-card ' + statusClass + '">';
+    html += '<div class="card-top"><div>';
+    html += '<div class="student-name">' + escHtml(s.name) + '</div>';
+    if (s.phone) html += '<div class="student-phone">📱 ' + escHtml(s.phone) + '</div>';
+    html += '</div><div class="badges">';
+    html += '<span class="badge badge-group">' + (s.group === 'beginner' ? 'Нач.' : 'Прод.') + '</span>';
+    html += '<span class="badge badge-type">' + s.total_lessons + ' зан.</span>';
+    html += '</div></div>';
+
+    html += '<div class="progress-wrapper"><div class="progress-labels"><span>Прогресс</span><span>' + used + ' из ' + total + '</span></div>';
+    var pct = total > 0 ? (used / total * 100) : 0;
+    html += '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%; background:' + pColor + '"></div></div></div>';
+
+    if (status.label) html += '<div class="status-text ' + warnClass + '">' + status.label + '</div>';
+    if (s.notes) html += '<div class="notes-block">📝 ' + escHtml(s.notes) + '</div>';
+
+    html += '<div class="card-actions">';
+    html += '<button class="btn btn-primary" onclick="openDayModal(\'' + s.id + '\', true)">📋 Посещаемость</button>';
+    if (isAdmin) {
+      html += '<button class="btn btn-secondary" onclick="openEditModal(\'' + s.id + '\')">Изменить</button>';
+      html += '<button class="btn btn-icon-only" onclick="deleteStudent(\'' + s.id + '\')">🗑️</button>';
+    }
+    html += '</div></div>';
+  }
+  container.innerHTML = html;
+}
+
+function renderStats(students, container) {
+  var total = students.length, beginners = 0, advanced = 0, expired = 0, totalAttended = 0;
+  for (var i = 0; i < students.length; i++) {
+    if (students[i].group === 'beginner') beginners++; else advanced++;
+    if (getStudentStatus(students[i]).level === 'expired') expired++;
+    totalAttended += (students[i].attendance || []).length;
+  }
+  var html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">';
+  html += '<div class="student-card" style="margin:0; text-align:center; padding:24px;"><div style="font-size:32px; font-weight:800; color:#FF8C69;">' + total + '</div><div style="font-size:13px; color:#9E8E90; font-weight:700;">Учеников</div></div>';
+  html += '<div class="student-card" style="margin:0; text-align:center; padding:24px;"><div style="font-size:32px; font-weight:800; color:#6BCB77;">' + totalAttended + '</div><div style="font-size:13px; color:#9E8E90; font-weight:700;">Посещений</div></div>';
+  html += '<div class="student-card" style="margin:0; text-align:center; padding:24px;"><div style="font-size:32px; font-weight:800; color:#9B85D6;">' + beginners + '</div><div style="font-size:13px; color:#9E8E90; font-weight:700;">Начинающих</div></div>';
+  html += '<div class="student-card" style="margin:0; text-align:center; padding:24px;"><div style="font-size:32px; font-weight:800; color:#EF476F;">' + expired + '</div><div style="font-size:13px; color:#9E8E90; font-weight:700;">Истёкших</div></div>';
+  html += '</div>';
+  
+  html += '<div class="student-card">';
+  html += '<h3 style="margin:0 0 16px 0;">Сводка по ученикам</h3>';
+  for (var i = 0; i < students.length; i++) {
+    var s = students[i];
+    var st = getStudentStatus(s);
+    var rem = getRemainingLessons(s);
+    html += '<div class="student-list-item">';
+    html += '<div><div style="font-weight:700;">' + escHtml(s.name) + '</div>';
+    html += '<div style="font-size:12px;color:#9E8E90;">' + (s.group==='beginner'?'Нач.':'Прод.') + ' · ' + s.total_lessons + ' зан.</div></div>';
+    html += '<div style="text-align:right;"><div style="font-weight:800;color:' + st.color + ';">' + rem + ' ост.</div>';
+    html += '<div style="font-size:11px;color:#9E8E90;">' + (st.label || 'OK') + '</div></div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderSchedule(students, container) {
+  var html = '<div class="student-card"><h3 style="margin:0 0 16px 0;">📅 Календарь занятий</h3>';
+  html += '<div class="calendar-grid" id="scheduleCalendar"></div>';
+  html += '</div>';
+  container.innerHTML = html;
+  
+  var calContainer = document.getElementById('scheduleCalendar');
+  var now = new Date();
+  var startMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  var endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  var calHtml = '';
+  var current = new Date(startMonth);
+
+  while (current <= endMonth) {
+    var year = current.getFullYear(); var month = current.getMonth();
+    calHtml += '<div class="cal-month-label">' + MONTH_NAMES[month] + ' ' + year + '</div>';
+    var firstDay = new Date(year, month, 1);
+    var lastDay = new Date(year, month + 1, 0);
+    
+    for (var i = 0; i < firstDay.getDay(); i++) calHtml += '<div class="cal-day" style="visibility:hidden;"></div>';
+
+    for (var d = 1; d <= lastDay.getDate(); d++) {
+      var dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      var count = 0;
+      for (var j = 0; j < students.length; j++) {
+        if ((students[j].attendance || []).indexOf(dateStr) >= 0) count++;
+      }
+      
+      var isPastDay = isPast(dateStr);
+      var isFilled = count > 0 && isPastDay;
+      var clickAction = isAdmin ? 'onclick="openDayModal(null, false, \'' + dateStr + '\')"' : '';
+
+      calHtml += '<div class="cal-day ' + (isFilled ? 'filled' : '') + '" ' + clickAction + ' style="cursor:' + (isAdmin || count > 0 ? 'pointer' : 'default') + '">';
+      calHtml += '<span class="day-num">' + d + '</span>';
+      calHtml += '<span class="day-name">' + DAY_NAMES[new Date(year, month, d).getDay()] + '</span>';
+      if (count > 0) calHtml += '<div style="font-size:9px;margin-top:2px;">' + count + ' чел.</div>';
+      calHtml += '</div>';
+    }
+    current = new Date(year, month + 1, 1);
+  }
+  calContainer.innerHTML = calHtml;
+}
+
+function renderSettings(container) {
+  var html = '<div class="config-notice"><h3>☁️ Tango Tracker</h3><p>Данные синхронизируются через облако Supabase</p></div>';
+  
+  html += '<div class="student-card">';
+  html += '<h3 style="margin:0 0 16px 0;">🔐 Режим администратора</h3>';
+  if (isAdmin) {
+    html += '<p style="color:#6BCB77;font-weight:700;margin-bottom:10px;">✅ Вы вошли как администратор</p>';
+    html += '<button class="btn btn-secondary" onclick="logoutAdmin()">Выйти из режима админа</button>';
+  } else {
+    html += '<p style="color:#9E8E90;margin-bottom:10px;">Войдите, чтобы добавлять и редактировать учеников</p>';
+    html += '<button class="btn btn-primary" onclick="document.getElementById(\'adminModal\').classList.add(\'open\')">Войти как админ</button>';
+  }
+  html += '</div>';
+
+  html += '<div class="student-card" style="margin-top:20px;">';
+  html += '<h3 style="margin:0 0 16px 0;">💾 Управление данными</h3>';
+  html += '<p style="color:#9E8E90;font-size:13px;margin-bottom:10px;">Данные хранятся в облаке и доступны на всех устройствах</p>';
+  html += '<button class="btn btn-icon-only" onclick="clearAllData()" style="width:100%;color:#EF476F;border:2px solid #EF476F;">🗑️ Очистить все данные в облаке</button>';
+  html += '</div>';
+
+  html += '<div class="student-card" style="margin-top:20px;">';
+  html += '<h3 style="margin:0 0 16px 0;">ℹ️ Информация</h3>';
+  html += '<p style="color:#9E8E90;font-size:13px;line-height:1.6;">';
+  html += 'Статус: <span style="color:' + (isOnline ? '#6BCB77' : '#EF476F') + ';font-weight:700;">' + (isOnline ? '✅ Подключено' : '❌ Нет подключения') + '</span><br>';
+  html += 'Учеников в базе: <b>' + currentStudents.length + '</b><br>';
+  html += 'Всего посещений: <b>' + currentStudents.reduce((sum, s) => sum + (s.attendance || []).length, 0) + '</b>';
+  html += '</p></div>';
+
+  container.innerHTML = html;
+}
+
+async function clearAllData() {
+  if (!confirm('Удалить ВСЕ данные из облачной базы? Это действие нельзя отменить!')) return;
+  if (!confirm('Точно уверены? Все ученики и их посещаемость будут удалены НАВСЕГДА!')) return;
+  
+  const result = await clearAllStudents();
+  if (result.error) {
+    alert('Ошибка: ' + result.error.message);
+  } else {
+    currentStudents = [];
+    render();
+    alert('Все данные удалены!');
+  }
+}
+
+function logoutAdmin() {
+  isAdmin = false;
+  localStorage.setItem('tango_is_admin', 'false');
+  render();
+}
+
+function openAddModal() {
+  if (!isAdmin) return;
+  document.getElementById('modalTitle').textContent = 'Новый ученик';
+  document.getElementById('editId').value = '';
+  document.getElementById('fName').value = ''; document.getElementById('fPhone').value = '';
+  document.getElementById('fGroup').value = 'beginner'; document.getElementById('fLessons').value = '4';
+  document.getElementById('fFirstDate').value = todayStr(); document.getElementById('fEndDate').value = '';
+  document.getElementById('fNotes').value = ''; document.getElementById('customEndGroup').style.display = 'none';
+  document.getElementById('studentModal').classList.add('open');
+}
+
+function openEditModal(id) {
+  if (!isAdmin) return;
+  var s = currentStudents.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('modalTitle').textContent = 'Редактировать';
+  document.getElementById('editId').value = s.id;
+  document.getElementById('fName').value = s.name || ''; document.getElementById('fPhone').value = s.phone || '';
+  document.getElementById('fGroup').value = s.group || 'beginner';
+  document.getElementById('fLessons').value = s.total_lessons || s.totalLessons || '4';
+  document.getElementById('fFirstDate').value = s.first_date || s.firstDate || '';
+  document.getElementById('fEndDate').value = s.custom_end_date || s.customEndDate || '';
+  document.getElementById('fNotes').value = s.notes || '';
+  document.getElementById('customEndGroup').style.display = (s.total_lessons || s.totalLessons) == '8' ? 'block' : 'none';
+  document.getElementById('studentModal').classList.add('open');
+}
+
+function closeStudentModal() { document.getElementById('studentModal').classList.remove('open'); }
+
+async function saveStudent() {
+  if (!isAdmin) return;
+  var name = document.getElementById('fName').value.trim();
+  if (!name) { alert('Введите имя'); return; }
+  var firstDate = document.getElementById('fFirstDate').value;
+  if (!firstDate) { alert('Выберите дату'); return; }
+
+  var id = document.getElementById('editId').value;
+  var data = {
+    name: name, phone: document.getElementById('fPhone').value.trim(),
+    group: document.getElementById('fGroup').value,
+    total_lessons: document.getElementById('fLessons').value,
+    first_date: firstDate, custom_end_date: document.getElementById('fEndDate').value || null,
+    notes: document.getElementById('fNotes').value.trim(),
+  };
+
+  var btn = document.getElementById('btnSaveStudent');
+  btn.textContent = 'Сохранение...'; btn.disabled = true;
+
+  var result;
+  if (id) {
+    result = await updateStudentInDb(id, data);
+  } else {
+    data.attendance = [];
+    result = await addStudentToDb(data);
+  }
+  
+  btn.textContent = 'Сохранить'; btn.disabled = false;
+  
+  if (result.error) {
+    alert('Ошибка сохранения: ' + result.error.message);
+  } else {
+    closeStudentModal();
+    render();
+  }
+}
+
+async function deleteStudent(id) {
+  if (!isAdmin) return;
+  if (!confirm('Удалить ученика из облачной базы?')) return;
+  
+  const result = await deleteStudentFromDb(id);
+  if (result.error) {
+    alert('Ошибка удаления: ' + result.error.message);
+  } else {
+    render();
+  }
+}
+
+function openDayModal(studentId, isPersonal, dateStr) {
+  currentStudentId = studentId;
+  var modal = document.getElementById('dayModal');
+  var calendarContainer = document.getElementById('attendanceCalendar');
+  var title = document.getElementById('dayModalTitle');
+  
+  var s = currentStudents.find(x => x.id === studentId);
+  if (!s && studentId) {
+    closeDayModal();
+    return;
+  }
+  
+  if (studentId) {
+    title.textContent = 'Посещаемость: ' + s.name;
+  } else {
+    title.textContent = 'Занятие: ' + formatDate(parseDate(dateStr));
+  }
+  
+  var now = new Date();
+  var prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  
+  var html = '';
+  var months = [prevMonth, now];
+  
+  if (studentId) {
+    // Режим посещаемости конкретного ученика - показываем календарь
+    for (var m = 0; m < months.length; m++) {
+      var year = months[m].getFullYear();
+      var month = months[m].getMonth();
+      
+      html += '<div class="cal-month-label" style="margin-top:' + (m > 0 ? '20px' : '0') + '">' + MONTH_NAMES[month] + ' ' + year + '</div>';
+      html += '<div class="calendar-grid" style="margin-bottom:10px;">';
+      
+      var firstDay = new Date(year, month, 1);
+      var lastDay = new Date(year, month + 1, 0);
+      
+      for (var i = 0; i < firstDay.getDay(); i++) {
+        html += '<div class="cal-day" style="visibility:hidden;"></div>';
+      }
+      
+      for (var d = 1; d <= lastDay.getDate(); d++) {
+        var dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        var isAttended = (s.attendance || []).indexOf(dateStr) >= 0;
+        var dow = new Date(year, month, d).getDay();
+        
+        var classes = 'cal-day';
+        if (isAttended) classes += ' filled';
+        
+        html += '<div class="' + classes + '" onclick="toggleAttendanceDay(\'' + studentId + '\',\'' + dateStr + '\')" style="cursor:pointer;">';
+        html += '<span class="day-num">' + d + '</span>';
+        html += '<span class="day-name">' + DAY_NAMES[dow] + '</span>';
+        html += '</div>';
+      }
+      
+      html += '</div>';
+    }
+  } else {
+    // Режим расписания - показываем список учеников для отметки
+    html += '<div style="margin-bottom:16px;font-weight:700;color:#9E8E90;">Отметьте присутствующих:</div>';
+    
+    if (currentStudents.length === 0) {
+      html += '<p style="text-align:center;color:#9E8E90;">Нет учеников</p>';
+    } else {
+      for (var i = 0; i < currentStudents.length; i++) {
+        var student = currentStudents[i];
+        var isChecked = (student.attendance || []).indexOf(dateStr) >= 0;
+        
+        html += '<div class="student-list-item">';
+        html += '<span style="font-weight:700;">' + escHtml(student.name) + '</span>';
+        if (isAdmin) {
+          html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
+          html += '<input type="checkbox" class="att-checkbox" data-id="' + student.id + '" data-date="' + dateStr + '" ' + (isChecked ? 'checked' : '') + ' style="width:20px;height:20px;">';
+          html += '</label>';
+        } else {
+          html += '<span style="color:' + (isChecked ? '#6BCB77' : '#ccc') + ';font-weight:700;">' + (isChecked ? '✅' : '⬜') + '</span>';
+        }
+        html += '</div>';
+      }
+    }
+    
+    if (isAdmin) {
+      html += '<button class="btn btn-primary" style="margin-top:16px;width:100%;" onclick="saveDayAttendance(\'' + dateStr + '\')">💾 Сохранить отметки</button>';
+    }
+  }
+  
+  calendarContainer.innerHTML = html;
+  modal.classList.add('open');
+}
+
+async function toggleAttendanceDay(studentId, dateStr) {
+  var s = currentStudents.find(x => x.id === studentId);
+  if (!s) return;
+  
+  if (!s.attendance) s.attendance = [];
+  var idx = s.attendance.indexOf(dateStr);
+  
+  if (idx >= 0) {
+    s.attendance.splice(idx, 1);
+  } else {
+    s.attendance.push(dateStr);
+    s.attendance.sort();
+  }
+  
+  const result = await updateStudentInDb(studentId, { attendance: s.attendance });
+  if (result.error) {
+    alert('Ошибка сохранения: ' + result.error.message);
+    return;
+  }
+  
+  openDayModal(studentId, true, null);
+  render();
+}
+
+async function saveDayAttendance(dateStr) {
+  if (!isAdmin) return;
+  var checkboxes = document.querySelectorAll('.att-checkbox');
+  var promises = [];
+  
+  checkboxes.forEach(cb => {
+    var sId = cb.getAttribute('data-id');
+    var date = cb.getAttribute('data-date');
+    var isChecked = cb.checked;
+    var s = currentStudents.find(x => x.id === sId);
+    if (!s) return;
+    
+    if (!s.attendance) s.attendance = [];
+    var idx = s.attendance.indexOf(date);
+    
+    if (isChecked && idx === -1) {
+      s.attendance.push(date);
+      s.attendance.sort();
+      promises.push(updateStudentInDb(sId, { attendance: s.attendance }));
+    } else if (!isChecked && idx >= 0) {
+      s.attendance.splice(idx, 1);
+      promises.push(updateStudentInDb(sId, { attendance: s.attendance }));
+    }
+  });
+  
+  await Promise.all(promises);
+  closeDayModal();
+  render();
+}
+
+function closeDayModal() { 
+  document.getElementById('dayModal').classList.remove('open');
+  currentStudentId = null;
+}
+
+// ==========================================
+// СОБЫТИЯ
+// ==========================================
+document.getElementById('tabs').addEventListener('click', function(e) {
+  if (e.target.classList.contains('tab-pill')) {
+    document.querySelectorAll('.tab-pill').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    currentTab = e.target.getAttribute('data-tab');
+    render();
+  }
+});
+
+document.getElementById('bottomNav').addEventListener('click', function(e) {
+  var item = e.target.closest('.nav-link');
+  if (!item) return;
+  document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+  item.classList.add('active');
+  currentView = item.getAttribute('data-view');
+  render();
+});
+
+document.getElementById('btnAddStudent').addEventListener('click', openAddModal);
+document.getElementById('btnCloseStudentModal').addEventListener('click', closeStudentModal);
+document.getElementById('btnCancelStudent').addEventListener('click', closeStudentModal);
+document.getElementById('btnSaveStudent').addEventListener('click', saveStudent);
+document.getElementById('btnCloseDayModal').addEventListener('click', closeDayModal);
+
+document.getElementById('fLessons').addEventListener('change', function() {
+  document.getElementById('customEndGroup').style.display = document.getElementById('fLessons').value == '8' ? 'block' : 'none';
+});
+
+document.getElementById('btnAdminLogin').addEventListener('click', function() {
+  var pass = document.getElementById('adminPass').value;
+  if (pass === ADMIN_PASSWORD) {
+    isAdmin = true;
+    localStorage.setItem('tango_is_admin', 'true');
+    document.getElementById('adminPass').value = '';
+    document.getElementById('adminModal').classList.remove('open');
+    render();
+  } else {
+    alert('Неверный пароль');
+  }
+});
+
+document.getElementById('studentModal').addEventListener('click', function(e) { if (e.target.id === 'studentModal') closeStudentModal(); });
+document.getElementById('dayModal').addEventListener('click', function(e) { if (e.target.id === 'dayModal') closeDayModal(); });
+document.getElementById('adminModal').addEventListener('click', function(e) { if (e.target.id === 'adminModal') document.getElementById('adminModal').classList.remove('open'); });
+
+// ==========================================
+// ИНИЦИАЛИЗАЦИЯ
+// ==========================================
+initSupabase();
+render();
+</script>
+</body>
+</html>
